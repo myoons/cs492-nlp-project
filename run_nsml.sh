@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-nsml run \
+./nsml run \
   -m 'kaist korquad open' \
   -d korquad-open-ldbd3 \
   -g 2 \
