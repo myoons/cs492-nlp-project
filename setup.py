@@ -7,7 +7,7 @@ setup(
     version='1.0',
     install_requires=[
         'boto3', 'regex', 'sacremoses', 'filelock', 'tokenizers',
-        'tqdm', 'konlpy', 'sentencepiece', 'dataclasses',
-        'transformers==2.10.0'
+        'tqdm', 'konlpy', 'gluonnlp', 'sentencepiece==0.1.6', 'dataclasses',
+        'transformers==2.10.0', 'torch==1.4.0', 'seqeval==0.0.12'
     ]
 )

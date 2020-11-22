@@ -23,30 +23,12 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from transformers import (
-    AdamW,
-    AlbertConfig,
-    AlbertForQuestionAnswering,
-    AlbertTokenizer,
-    BertConfig,
-    BertForQuestionAnswering,
-    BertTokenizer,
-    DistilBertConfig,
-    DistilBertForQuestionAnswering,
-    DistilBertTokenizer,
-    RobertaConfig,
-    RobertaForQuestionAnswering,
-    RobertaTokenizer,
-    XLMConfig,
-    XLMForQuestionAnswering,
-    XLMTokenizer,
-    XLNetConfig,
-    XLNetForQuestionAnswering,
-    XLNetTokenizer,
-    get_linear_schedule_with_warmup,
-)
+from transformers import BertModel
+from tokenization_kobert import KoBertTokenizer
+
 from open_squad import squad_convert_examples_to_features
 from pytorch_kobert import *
+from utils import *
 
 '''
 from transformers.data.metrics.squad_metrics import (
@@ -74,19 +56,19 @@ logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
 
-ALL_MODELS = sum(
-    (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, RobertaConfig, XLNetConfig, XLMConfig)),
-    (),
-)
+# ALL_MODELS = sum(
+#     (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, RobertaConfig, XLNetConfig, XLMConfig)),
+#     (),
+# )
 
-MODEL_CLASSES = {
-    "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
-    "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
-    "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
-    "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
-    "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
-}
+# MODEL_CLASSES = {
+#     "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
+    # "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
+    # "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
+    # "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
+    # "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
+    # "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
+# }
 
 
 def set_seed(args):
@@ -566,6 +548,8 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
 
 
 def main():
+    logger.warning("start")
+
     parser = argparse.ArgumentParser()
 
     # Required parameters
@@ -574,14 +558,13 @@ def main():
         default=None,
         type=str,
         required=True,
-        help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
+        # help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
     )
     parser.add_argument(
         "--model_name_or_path",
         default=None,
         type=str,
         required=True,
-        help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(ALL_MODELS),
     )
     parser.add_argument(
         "--output_dir",
@@ -591,7 +574,7 @@ def main():
         help="The output directory where the model checkpoints and predictions will be written.",
     )
 
-    # Other parameters
+    # Other parametersㄹ
     parser.add_argument(
         "--data_dir",
         default=None,
@@ -756,9 +739,11 @@ def main():
     ################################
 
     args = parser.parse_args()
+    logger.warning(args)
 
     # for NSML
     args.data_dir = os.path.join(DATASET_PATH, args.data_dir)
+    logger.warning("dataset")
 
     if (
             os.path.exists(args.output_dir)
@@ -815,31 +800,16 @@ def main():
     if args.local_rank not in [-1, 0]:
         # Make sure only the first process in distributed training will download model & vocab
         torch.distributed.barrier()
-
     args.model_type = args.model_type.lower()
-    config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
-    config = config_class.from_pretrained(
-        args.config_name if args.config_name else args.model_name_or_path,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-    tokenizer = tokenizer_class.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
-        do_lower_case=args.do_lower_case,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-    
-    model = model_class.from_pretrained(
-        args.model_name_or_path,
-        from_tf=bool(".ckpt" in args.model_name_or_path),
-        config=config,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
+
+    model = BertModel.from_pretrained('monologg/kobert')
+    tokenizer = KoBertTokenizer.from_pretrained('monologg/kobert')
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
         torch.distributed.barrier()
 
-    model.to(args.device)
+    # model.to(args.device)
 
     ### DO NOT MODIFY THIS BLOCK ###
     if IS_ON_NSML:
