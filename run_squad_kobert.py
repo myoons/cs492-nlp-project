@@ -23,12 +23,10 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from transformers import BertModel
+from transformers import BertModel, AdamW
 from tokenization_kobert import KoBertTokenizer
 
 from open_squad import squad_convert_examples_to_features
-from pytorch_kobert import *
-from utils import *
 
 '''
 from transformers.data.metrics.squad_metrics import (
@@ -809,7 +807,7 @@ def main():
         # Make sure only the first process in distributed training will download model & vocab
         torch.distributed.barrier()
 
-    # model.to(args.device)
+    model.to(args.device)
 
     ### DO NOT MODIFY THIS BLOCK ###
     if IS_ON_NSML:
