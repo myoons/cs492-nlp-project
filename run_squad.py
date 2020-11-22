@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from transformers import ElectraModel, ElectraTokenizer, AdamW
+from transformers import ElectraModel, ElectraTokenizer, AdamW, get_linear_schedule_with_warmup
 from open_squad import squad_convert_examples_to_features
 
 # KorQuAD-Open-Naver-Search 사용할때 전처리 코드.
