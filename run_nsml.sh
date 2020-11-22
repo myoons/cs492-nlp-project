@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 ./nsml run \
-  -m 'kaist korquad open' \
+  -m 'Bert Used' \
   -d korquad-open-ldbd3 \
   -g 2 \
   -c 8 \
   -e run_squad.py \
-  -a "--model_type bert
-    --model_name_or_path bert-base-multilingual-cased
+  -a "--model_type distilbert
+    --model_name_or_path distilbert-base-multilingual-cased
     --do_train
     --do_eval
     --data_dir train

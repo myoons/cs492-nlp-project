@@ -328,8 +328,8 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
 
     start_position = tok_text.find(pred_text)
     if start_position == -1:
-        if verbose_logging:
-            logger.info("Unable to find text: '%s' in '%s'" % (pred_text, orig_text))
+        # if verbose_logging:
+            # logger.info("Unable to find text: '%s' in '%s'" % (pred_text, orig_text))
         return orig_text
     end_position = start_position + len(pred_text) - 1
 
@@ -337,8 +337,8 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
     (tok_ns_text, tok_ns_to_s_map) = _strip_spaces(tok_text)
 
     if len(orig_ns_text) != len(tok_ns_text):
-        if verbose_logging:
-            logger.info("Length not equal after stripping spaces: '%s' vs '%s'", orig_ns_text, tok_ns_text)
+        # if verbose_logging:
+            # logger.info("Length not equal after stripping spaces: '%s' vs '%s'", orig_ns_text, tok_ns_text)
         return orig_text
 
     # We then project the characters in `pred_text` back to `orig_text` using
@@ -354,8 +354,8 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
             orig_start_position = orig_ns_to_s_map[ns_start_position]
 
     if orig_start_position is None:
-        if verbose_logging:
-            logger.info("Couldn't map start position")
+        # if verbose_logging:
+            # logger.info("Couldn't map start position")
         return orig_text
 
     orig_end_position = None
@@ -365,8 +365,8 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
             orig_end_position = orig_ns_to_s_map[ns_end_position]
 
     if orig_end_position is None:
-        if verbose_logging:
-            logger.info("Couldn't map end position")
+        # if verbose_logging:
+            # logger.info("Couldn't map end position")
         return orig_text
 
     output_text = orig_text[orig_start_position: (orig_end_position + 1)]
@@ -425,6 +425,9 @@ def select_best_predictions(all_nbest_json):
             if is_max_prob_updated:
                 best_answer_max_prob[qa_id_without_s] = prob
                 best_answer_predictions[qa_id_without_s] = text
+        
+        print('best_answer_max_prob :',best_answer_max_prob)
+        print('best_answer_predictions :',best_answer_predictions)
     return best_answer_predictions
 
 

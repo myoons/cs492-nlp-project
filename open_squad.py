@@ -560,6 +560,12 @@ class SquadProcessor(DataProcessor):
                 start_position_character = None
                 answers = []
 
+                print('qas_id :',qas_id)
+                print('paragraph :',paragraph)
+                print('question_text :',question_text)
+                print('context_text :',context_text)
+                print('answer_text :',answer_text)
+
                 if answer_text not in context_text:
                     is_impossible = True
                 else:

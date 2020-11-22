@@ -47,21 +47,13 @@ from transformers import (
 )
 from open_squad import squad_convert_examples_to_features
 
-'''
-from transformers.data.metrics.squad_metrics import (
-    compute_predictions_log_probs,
-    compute_predictions_logits,
-    squad_evaluate,
-)
-from transformers.data.processors.squad import SquadResult, SquadV1Processor, SquadV2Processor
-'''
-# ''
 # KorQuAD-Open-Naver-Search 사용할때 전처리 코드.
 from open_squad_metrics import (
     compute_predictions_log_probs,
     compute_predictions_logits,
     squad_evaluate,
 )
+
 from open_squad import SquadResult, SquadV1Processor, SquadV2Processor
 
 import nsml
@@ -85,6 +77,7 @@ MODEL_CLASSES = {
     "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
     "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
     "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
+    "koelectra" : (KoElectraConfig, KoElectraModel, KoElectraTokenizer)
 }
 
 
@@ -102,13 +95,11 @@ def to_list(tensor):
 
 # NSML functions
 
-
 def _infer(model, tokenizer, my_args, root_path):
     my_args.data_dir = root_path
     _, predictions = predict(my_args, model, tokenizer, val_or_test="test")
     qid_and_answers = [("test-{}".format(qid), answer) for qid, (_, answer) in enumerate(predictions.items())]
     return qid_and_answers
-
 
 def bind_nsml(model, tokenizer, my_args):
 
@@ -146,15 +137,15 @@ def bind_nsml(model, tokenizer, my_args):
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
 
-    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
+    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu) # Number of GPU correlated to batch size
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
     if args.max_steps > 0:
         t_total = args.max_steps
-        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1 # Setting
     else:
-        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs # Default : t_total = 3 (Epoch: 0, 1, 2)
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
@@ -164,16 +155,15 @@ def train(args, train_dataset, model, tokenizer):
             "weight_decay": args.weight_decay,
         },
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
-    ]
+    ] # Parameter Classification /w different Weight_Decay
+    
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-    )
+    ) # Create a schedule with a learning rate that decreases linearly from the initial lr set in the optimizer to 0, after a warmup period during which it increases linearly from 0 to the initial lr set in the optimizer.
 
     # Check if saved optimizer or scheduler states exist
-    if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(
-            os.path.join(args.model_name_or_path, "scheduler.pt")
-    ):
+    if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(os.path.join(args.model_name_or_path, "scheduler.pt")):
         # Load in optimizer and scheduler states
         optimizer.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "optimizer.pt")))
         scheduler.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "scheduler.pt")))
@@ -250,7 +240,7 @@ def train(args, train_dataset, model, tokenizer):
 
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
-
+            
             inputs = {
                 "input_ids": batch[0],
                 "attention_mask": batch[1],
@@ -485,7 +475,7 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
             tokenizer,
             is_test=is_test,
         )
-
+    logger.info
     return examples, predictions
 
 
@@ -715,7 +705,7 @@ def main():
     )
 
     parser.add_argument("--logging_steps", type=int, default=100, help="Log every X updates steps.")
-    parser.add_argument("--save_steps", type=int, default=1000, help="Save checkpoint every X updates steps.")
+    parser.add_argument("--save_steps", type=int, default=10000, help="Save checkpoint every X updates steps.")
     parser.add_argument(
         "--eval_all_checkpoints",
         action="store_true",
