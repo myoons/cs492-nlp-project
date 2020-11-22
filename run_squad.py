@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from transformers import ElectraModel, ElectraTokenizer, AdamW, get_linear_schedule_with_warmup
+from transformers import ElectraTokenizer, AdamW, get_linear_schedule_with_warmup, ElectraConfig, ElectraForQuestionAnswering
 from open_squad import squad_convert_examples_to_features
 
 # KorQuAD-Open-Naver-Search 사용할때 전처리 코드.
@@ -768,8 +768,9 @@ def main():
 
     logger.warning("Model Loading ..")
 
-    model = ElectraModel.from_pretrained("monologg/koelectra-base-v2-discriminator")
-    tokenizer = ElectraTokenizer.from_pretrained("monologg/koelectra-base-v2-discriminator", do_lower_case=False)
+    config = ElectraConfig.from_pretrained(args.model_name_or_path)
+    model = ElectraForQuestionAnswering.from_pretrained(args.model_name_or_path, config=config)
+    tokenizer = ElectraTokenizer.from_pretrained(args.model_name_or_path, do_lower_case=False)
 
     logger.warning("Model Loading Completed")
 

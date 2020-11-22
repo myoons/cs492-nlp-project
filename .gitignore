@@ -265,3 +265,4 @@ data_loader.py
 evaluation.py
 
 session10/
+run_local.sh
