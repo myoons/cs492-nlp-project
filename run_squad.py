@@ -1,15 +1,4 @@
 # coding=utf-8
-
-""" Finetuning the library models for question-answering on SQuAD (DistilBERT, Bert, XLM, XLNet)."""
-
-"""
-KorQuAD open 형 학습 스크립트
-
-본 스크립트는 다음의 파일을 바탕으로 작성 됨
-https://github.com/huggingface/transformers/blob/master/examples/question-answering/run_squad.py
-
-"""
-
 import argparse
 import logging
 import os

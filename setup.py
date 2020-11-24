@@ -8,6 +8,6 @@ setup(
     install_requires=[
         'boto3', 'regex', 'sacremoses', 'filelock', 'tokenizers',
         'tqdm', 'konlpy', 'sentencepiece==0.1.91', 'dataclasses',
-        'transformers==3.3.1', 'torch==1.6.0'
+        'transformers==3.0.2'
     ]
 )
