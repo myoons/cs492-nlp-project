@@ -23,26 +23,19 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from transformers import BertModel, AdamW
+from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
 from tokenization_kobert import KoBertTokenizer
 
 from open_squad import squad_convert_examples_to_features
 
-'''
-from transformers.data.metrics.squad_metrics import (
-    compute_predictions_log_probs,
-    compute_predictions_logits,
-    squad_evaluate,
-)
-from transformers.data.processors.squad import SquadResult, SquadV1Processor, SquadV2Processor
-'''
-# ''
+
 # KorQuAD-Open-Naver-Search 사용할때 전처리 코드.
 from open_squad_metrics import (
     compute_predictions_log_probs,
     compute_predictions_logits,
     squad_evaluate,
 )
+
 from open_squad import SquadResult, SquadV1Processor, SquadV2Processor
 
 import nsml
@@ -53,20 +46,6 @@ if not IS_ON_NSML:
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
-
-# ALL_MODELS = sum(
-#     (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, RobertaConfig, XLNetConfig, XLMConfig)),
-#     (),
-# )
-
-# MODEL_CLASSES = {
-#     "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
-    # "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
-    # "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
-    # "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-    # "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
-    # "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
-# }
 
 
 def set_seed(args):
@@ -237,16 +216,9 @@ def train(args, train_dataset, model, tokenizer):
                 "attention_mask": batch[1],
                 "token_type_ids": batch[2],
                 "start_positions": batch[3],
-                "end_positions": batch[4],
+                "end_positions": batch[4],                
             }
 
-            if args.model_type in ["xlm", "roberta", "distilbert"]:
-                del inputs["token_type_ids"]
-
-            if args.model_type in ["xlnet", "xlm"]:
-                inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
-                if args.version_2_with_negative:
-                    inputs.update({"is_impossible": batch[7]})
             outputs = model(**inputs)
             # model outputs are always tuple in transformers (see doc)
             loss = outputs[0]
