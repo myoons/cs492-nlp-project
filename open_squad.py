@@ -542,6 +542,7 @@ class SquadProcessor(DataProcessor):
         examples = []
 
         has_answer_cnt, no_answer_cnt = 0, 0
+
         for entry in tqdm(input_data[:]):
             qa = entry['qa']
             question_text = qa["question"]
@@ -551,6 +552,8 @@ class SquadProcessor(DataProcessor):
 
             per_qa_paragraph_cnt = 0
             per_qa_unans_paragraph_cnt = 0
+
+            # 여러 문단들 중 어떤 문단을 선택할 것인지.
             for pi, paragraph in enumerate(entry["paragraphs"]):
                 title = paragraph["title"]
                 context_text = str(paragraph["contents"])
@@ -559,15 +562,6 @@ class SquadProcessor(DataProcessor):
                 qas_id = "{}[SEP]{}[SEP]{}".format(question_text, answer_text, pi)
                 start_position_character = None
                 answers = []
-
-                """
-                Session 77 참고
-                print('qas_id :',qas_id)
-                print('paragraph :',paragraph)
-                print('question_text :',question_text)
-                print('context_text :',context_text)
-                print('answer_text :',answer_text)
-                """
 
                 if answer_text not in context_text:
                     is_impossible = True
@@ -589,23 +583,35 @@ class SquadProcessor(DataProcessor):
                     start_position_character=start_position_character,
                     title=title,
                     is_impossible=is_impossible,
-                    answers=answers,
+                    answers=answers, # if is_training empty, else text, answer_start
                 )
-                if is_impossible:
-                    no_answer_cnt += 1
-                    per_qa_unans_paragraph_cnt += 1
-                else:
-                    has_answer_cnt += 1
-
-                if is_impossible and per_qa_unans_paragraph_cnt > 3:
-                    continue
 
                 # todo: How to select training samples considering a memory limit.
-                per_qa_paragraph_cnt += 1
-                if is_training and per_qa_paragraph_cnt > 3:
-                    break
+                # Prediction 가지는 paragraph를 선택하는 것이 합리적
 
-                examples.append(example)
+                # Answer 이 없는 경우
+                if is_impossible:
+                    per_qa_unans_paragraph_cnt += 1
+                # else:
+                    # per_qa_paragraph_cnt += 1
+
+                """
+                1. 정답이 있는 Paragraph 전으로 2개, 후로 1개 (최대) 선택하는 것이 어떨까?
+                2. Predict 함수로 확률을 계싼해서 정답이 있을 Paragraph를 고르는 것은 어떨까?
+                """
+
+                if is_impossible and per_qa_unans_paragraph_cnt > 3: # 3개 3 --> 1
+                    continue
+                elif is_impossible and per_qa_unans_paragraph_cnt < 3:
+                    no_answer_cnt += 1
+                else : # is_impossible = False
+                    if is_training :
+                        per_qa_paragraph_cnt += 1
+                        has_answer_cnt += 1
+
+                examples.append(example) # No limitation for has_answer_cnt / limitation for per_qa_unans_paragraph_cnt = 3
+
+            print("Paragraph Selected Has Answer : {} / No Answer : {}".format(per_qa_paragraph_cnt, per_qa_unans_paragraph_cnt))
 
         print("[{}] Has Answer({}) / No Answer({})".format(set_type, has_answer_cnt, no_answer_cnt))
         return examples
