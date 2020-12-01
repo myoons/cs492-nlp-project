@@ -550,8 +550,12 @@ class SquadProcessor(DataProcessor):
             if question_text is None or answer_text is None:
                 continue
 
-            per_qa_paragraph_cnt = 0
             per_qa_unans_paragraph_cnt = 0
+            per_qa_paragraph_cnt = 0
+
+            # Whether previous paragraph had answer.
+            before_paragraph_answer = False
+            before_paragraph_appended = False
 
             # 여러 문단들 중 어떤 문단을 선택할 것인지.
             for pi, paragraph in enumerate(entry["paragraphs"]):
@@ -583,37 +587,83 @@ class SquadProcessor(DataProcessor):
                     start_position_character=start_position_character,
                     title=title,
                     is_impossible=is_impossible,
-                    answers=answers, # if is_training empty, else text, answer_start
+                    answers=answers, # if no_ans or is_training empty else {text, answer_start}
                 )
 
-                # todo: How to select training samples considering a memory limit.
-                # Prediction 가지는 paragraph를 선택하는 것이 합리적
-
-                # Answer 이 없는 경우
                 if is_impossible:
-                    per_qa_unans_paragraph_cnt += 1
-                # else:
-                    # per_qa_paragraph_cnt += 1
-
-                """
-                1. 정답이 있는 Paragraph 전으로 2개, 후로 1개 (최대) 선택하는 것이 어떨까?
-                2. Predict 함수로 확률을 계싼해서 정답이 있을 Paragraph를 고르는 것은 어떨까?
-                """
-
-                if is_impossible and per_qa_unans_paragraph_cnt > 3: # 3개 3 --> 1
-                    continue
-                elif is_impossible and per_qa_unans_paragraph_cnt < 3:
                     no_answer_cnt += 1
-                else : # is_impossible = False
-                    if is_training :
-                        per_qa_paragraph_cnt += 1
-                        has_answer_cnt += 1
+                    per_qa_unans_paragraph_cnt += 1
+                else:
+                    has_answer_cnt += 1
 
-                examples.append(example) # No limitation for has_answer_cnt / limitation for per_qa_unans_paragraph_cnt = 3
+                if is_impossible and per_qa_unans_paragraph_cnt > 1:
+                    continue
 
-            print("Paragraph Selected Has Answer : {} / No Answer : {}".format(per_qa_paragraph_cnt, per_qa_unans_paragraph_cnt))
+                # todo: How to select training samples considering a memory limit.
+                # per_qa_paragraph_cnt: 개수 수정
+                per_qa_paragraph_cnt += 1
+                if is_training and per_qa_paragraph_cnt > 4:
+                    break
 
-        print("[{}] Has Answer({}) / No Answer({})".format(set_type, has_answer_cnt, no_answer_cnt))
+                examples.append(example)
+
+                # todo: How to select training samples considering a memory limit.
+                
+                # Prediction 가지는 paragraph를 선택하는 것이 합리적
+                """
+                if is_impossible: # Answer 이 없는 경우
+
+                    before_paragraph_answer = False # Before 문단 answer False로 설정
+
+                    if per_qa_unans_paragraph_cnt < 2 : # 초반 2개는 포함 해야지.
+                        per_qa_unans_paragraph_cnt += 1
+                        no_answer_cnt += 1
+                        examples.append(example)
+                        before_paragraph_appended = True
+                        continue
+                    else : # 초반 2개가 아니면
+                        before_paragraph_appended = False
+                        continue
+
+                else : # Answer 이 있는 경우
+
+                    if is_training and per_qa_paragraph_cnt > 10:
+                        break
+
+                    per_qa_paragraph_cnt += 1
+                    has_answer_cnt += 1
+                    examples.append(example) # 현재 example 일단 추가
+                    before_paragraph_answer = True # Before 문단 answer True로 설정
+
+                    if pi != 0 and per_qa_unans_paragraph_cnt < 3 and before_paragraph_answer==False and before_paragraph_appended==False:
+                        
+                        previous_title = entry['paragraphs'][pi-1]['title']
+                        previous_content = str(entry['paragraphs'][pi-1]['contents'])
+                        previous_qas_id = "{}[SEP]{}[SEP]{}".format(question_text, answer_text, pi-1)
+
+                        previous_example = SquadExample(
+                            qas_id=previous_qas_id,
+                            question_text=question_text,
+                            context_text=previous_content,
+                            answer_text=answer_text,
+                            start_position_character=None,
+                            title=previous_title,
+                            is_impossible=True,
+                            answers=[], # if is_training empty, else text, answer_start
+                        )
+                        
+                        per_qa_unans_paragraph_cnt += 1
+                        no_answer_cnt += 1
+                        examples.append(previous_example)
+
+                        before_paragraph_appended = True # 정답이 있는 data가 appended 됐으므로; 615번째 줄
+                        continue
+    
+                    else :
+                        continue
+                """
+        print("[{}] Has Answer({}) / No Answer({}) selected for examples".format(set_type, has_answer_cnt, no_answer_cnt))
+
         return examples
 
 

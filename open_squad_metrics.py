@@ -95,13 +95,48 @@ def get_raw_scores(examples, preds):
 
 
 def apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
+    # na_probs : no answer probabilities
+    # na_prob_thresho : threshold
+    # qid_to_has_ans : {question_text[SEP]answer_text : [{'id': question_text[SEP]answer_text[SEP]pi, 'has_answer': has_answer(bool)}, ... 여러개 (Paragraph 수만큼)]}
     new_scores = {}
     for qid, s in scores.items():
-        pred_na = na_probs[qid] > na_prob_thresh
+        pred_na = na_probs[qid] > na_prob_thresh # Threshold , Currently 1.0 = False
         if pred_na:
             new_scores[qid] = float(not qid_to_has_ans[qid])
         else:
             new_scores[qid] = s
+    return new_scores
+
+def open_apply_no_ans_threshold(scores, na_probs, open_qas_id_to_has_answer, na_prob_thresh):
+    # na_probs : no answer probabilities
+    # na_prob_thresho : threshold
+    # qid_to_has_ans : 
+    # {question_text[SEP]answer_text : 
+    #               [{'id': question_text[SEP]answer_text[SEP]pi, 'has_answer': has_answer(bool)},
+    #                ... 여러개 (Paragraph 수만큼)}]
+
+    """
+    만약 na_probs가 na_prob_thresh보다 높으면 na라고 판단
+    --> 그 qid가 open_qas_id_to_has_answer에 has_answer : False라면 score 1, 아니면 0이라고 해야겠지!!
+    """
+
+    new_scores = {}
+
+    for qid, s in scores.items():
+        pred_na = na_probs[qid] > na_prob_thresh # Threshold , Currently 1.0 => Always False
+        if pred_na:
+            # 정답이 없다고 판단
+            open_has_answer = False
+            for paragraph in qid_to_has_ans[qid]: # {'id': question_text[SEP]answer_text[SEP]pi, 'has_answer': has_answer(bool)}
+                open_has_answer = paragraph[has_answer]
+            
+            if open_has_answer == True :
+                new_scores[qid] = 0.0
+            else :
+                new_scores[qid] = 1.0 # float(False) = 0.0 / float(True) = 1.0
+        else:
+            new_scores[qid] = s
+
     return new_scores
 
 
@@ -209,9 +244,32 @@ def find_all_best_thresh(main_eval, preds, exact_raw, f1_raw, na_probs, qid_to_h
     main_eval["best_f1_thresh"] = f1_thresh
 
 
-def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=1.0):
+def squad_evaluate(examples, preds, probs, no_answer_probs=None, no_answer_probability_threshold=1.0):
+    """
+    example = SquadExample(
+                qas_id= "{}[SEP]{}[SEP]{}".format(question_text, answer_text, pi)
+                question_text=question_text,
+                context_text=context_text,
+                answer_text=answer_text,
+                start_position_character=start_position_character,
+                title=title,
+                is_impossible=is_impossible,
+                answers=answers, # if no_ans or is_training empty else {text, answer_start}
+            )
+    """
+
+    logger.info('preds : {}'.format(preds))
+    logger.info('preds type : {}'.format(type(preds)))
+    logger.info('preds len : {}'.format(len(preds)))
+    logger.info('probs : {}'.format(probs))
+    logger.info('probs type : {}'.format(type(probs)))
+    logger.info('probs len : {}'.format(len(probs)))
+
+    # if no_ans or is_training : fasle, else (has_ans, not is_training) : true  // { qas_id : bool }
     qas_id_to_has_answer = {example.qas_id: bool(example.answers) for example in examples}
+    # qids for has_ans
     has_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if has_answer]
+    # qids for no_ans
     no_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if not has_answer]
 
     if no_answer_probs is None:
@@ -242,10 +300,19 @@ def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_
 
 # TODO : incomplete
 def squad_open_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=1.0):
+    # if no_ans : fasle, else has_ans : true  // { question_text[SEP]answer_text[SEP]pi : bool }
     qas_id_to_has_answer = {example.qas_id: bool(example.answers) for example in examples}
     has_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if has_answer]
     no_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if not has_answer]
 
+    # qas_id= "{}[SEP]{}[SEP]{}".format(question_text, answer_text, pi)
+    # qas_id.split('[SEP'])[:2] => question_text[SEP]answer_text
+    # {question_text[SEP]answer_text : [{'id': question_text[SEP]answer_text[SEP]pi, 'has_answer': has_answer(bool)}, ... 여러개 (Paragraph 수만큼)]}
+    
+    """
+    한 question_text와 answer_text에 여러개의 paragraph가 배정되어있다.
+    위와는 다르게!!
+    """
     open_qas_id_to_has_answer = {'[SEP]'.join(qas_id.split('[SEP]')[:2]): [] for qas_id in qas_id_to_has_answer}
     for qas_id, has_answer in qas_id_to_has_answer.items():
         open_qas_id_to_has_answer['[SEP]'.join(qas_id.split('[SEP]')[:2])].append(
@@ -253,15 +320,18 @@ def squad_open_evaluate(examples, preds, no_answer_probs=None, no_answer_probabi
              'has_answer': has_answer}
         )
 
+    # pred를 사용해서 no_answer_probs를 어떻게 하면 될듯?
     if no_answer_probs is None:
         no_answer_probs = {k: 0.0 for k in preds}
 
     exact, f1 = get_raw_scores(examples, preds)
 
-    exact_threshold = apply_no_ans_threshold(
-        exact, no_answer_probs, qas_id_to_has_answer, no_answer_probability_threshold
+ 
+    # Currently no_answer_probs == {pred: 0.0 , ...}
+    exact_threshold = open_apply_no_ans_threshold(
+        exact, no_answer_probs, open_qas_id_to_has_answer, no_answer_probability_threshold
     )
-    f1_threshold = apply_no_ans_threshold(f1, no_answer_probs, qas_id_to_has_answer, no_answer_probability_threshold)
+    f1_threshold = open_apply_no_ans_threshold(f1, no_answer_probs, open_qas_id_to_has_answer, no_answer_probability_threshold)
 
     evaluation = make_eval_dict(exact_threshold, f1_threshold)
 
@@ -428,7 +498,7 @@ def select_best_predictions(all_nbest_json):
         
         print('best_answer_max_prob :',best_answer_max_prob)
         print('best_answer_predictions :',best_answer_predictions)
-    return best_answer_predictions
+    return best_answer_predictions, best_answer_max_prob
 
 
 def compute_predictions_logits(

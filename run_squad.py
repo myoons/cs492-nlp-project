@@ -284,13 +284,17 @@ def train(args, train_dataset, model, tokenizer):
 
 
 def evaluate(args, model, tokenizer, prefix="", val_or_test="val"):
-    examples, predictions = predict(args, model, tokenizer, prefix=prefix, val_or_test=val_or_test)
-    # Compute the F1 and exact scores.
-    results = squad_evaluate(examples, predictions)
+    # prefix = epoch
+    examples, predictions, probabilites = predict(args, model, tokenizer, prefix=prefix, val_or_test=val_or_test)
+    # Compute the F1 and exact scores. 
+    # predictions 
+    results = squad_evaluate(examples, predictions, probabilites)
     return results
 
 
 def predict(args, model, tokenizer, prefix="", val_or_test="val"):
+
+    # get Datasets for prediction
     dataset, examples, features = load_and_cache_examples(
         args, tokenizer, evaluate=True, output_examples=True,
         val_or_test=val_or_test,
@@ -328,6 +332,7 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
                 "token_type_ids": batch[2],
             }
 
+            example_indices = batch[3]
             outputs = model(**inputs)
 
         for i, example_index in enumerate(example_indices):
@@ -368,13 +373,15 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
     output_nbest_file = os.path.join(args.output_dir, "nbest_predictions_{}.json".format(prefix))
 
     if args.version_2_with_negative:
+        # This one (Default)
         output_null_log_odds_file = os.path.join(args.output_dir, "null_odds_{}.json".format(prefix))
     else:
         output_null_log_odds_file = None
 
     is_test = (val_or_test == "test")
-    
-    predictions = compute_predictions_logits(
+    # XLNet and XLM use a more complex post-processing procedure
+
+    predictions, probabilites = compute_predictions_logits(
         examples,
         features,
         all_results,
@@ -390,8 +397,9 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
         tokenizer,
         is_test=is_test,
     )
+    
     logger.info
-    return examples, predictions
+    return examples, predictions, probabilites
 
 
 def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=False, val_or_test="val"):
@@ -581,7 +589,7 @@ def main():
     parser.add_argument(
         "--per_gpu_eval_batch_size", default=8, type=int, help="Batch size per GPU/CPU for evaluation."
     )
-    parser.add_argument("--learning_rate", default=5e-4, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
