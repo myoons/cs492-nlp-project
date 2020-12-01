@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 nsml run \
-  -m 'ans_paragraph : no_ans_paragraph = 10 : 2, open_squad_metrics' \
+  -m 'kaist korquad hanbert' \
   -d korquad-open-ldbd3 \
   -g 2 \
   -c 8 \
-  -e run_squad.py \
-  -a "--model_type koelectra \
-    --model_name_or_path monologg/koelectra-base-v2-discriminator \
+  -e run_squad_hanbert.py \
+  -a "--model_type hanbert \
+    --model_name_or_path HanBert-54kN-torch \
     --do_train
     --do_eval
     --data_dir train

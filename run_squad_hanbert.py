@@ -1,15 +1,4 @@
 # coding=utf-8
-
-""" Finetuning the library models for question-answering on SQuAD (DistilBERT, Bert, XLM, XLNet)."""
-
-"""
-KorQuAD open 형 학습 스크립트
-
-본 스크립트는 다음의 파일을 바탕으로 작성 됨
-https://github.com/huggingface/transformers/blob/master/examples/question-answering/run_squad.py
-
-"""
-
 import argparse
 import logging
 import os
@@ -23,11 +12,9 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
-from tokenization_kobert import KoBertTokenizer
-
+from transformers import AdamW, get_linear_schedule_with_warmup, BertConfig, BertForQuestionAnswering
+from tokenization_hanbert import HanBertTokenizer
 from open_squad import squad_convert_examples_to_features
-
 
 # KorQuAD-Open-Naver-Search 사용할때 전처리 코드.
 from open_squad_metrics import (
@@ -47,7 +34,6 @@ logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
 
-
 def set_seed(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -62,13 +48,11 @@ def to_list(tensor):
 
 # NSML functions
 
-
 def _infer(model, tokenizer, my_args, root_path):
     my_args.data_dir = root_path
     _, predictions = predict(my_args, model, tokenizer, val_or_test="test")
     qid_and_answers = [("test-{}".format(qid), answer) for qid, (_, answer) in enumerate(predictions.items())]
     return qid_and_answers
-
 
 def bind_nsml(model, tokenizer, my_args):
 
@@ -106,15 +90,15 @@ def bind_nsml(model, tokenizer, my_args):
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
 
-    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
+    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu) # Number of GPU correlated to batch size
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
     if args.max_steps > 0:
         t_total = args.max_steps
-        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1 # Setting
     else:
-        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs # Default : t_total = 3 (Epoch: 0, 1, 2)
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
@@ -124,16 +108,15 @@ def train(args, train_dataset, model, tokenizer):
             "weight_decay": args.weight_decay,
         },
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
-    ]
+    ] # Parameter Classification /w different Weight_Decay
+    
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-    )
+    ) # Create a schedule with a learning rate that decreases linearly from the initial lr set in the optimizer to 0, after a warmup period during which it increases linearly from 0 to the initial lr set in the optimizer.
 
     # Check if saved optimizer or scheduler states exist
-    if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(
-            os.path.join(args.model_name_or_path, "scheduler.pt")
-    ):
+    if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(os.path.join(args.model_name_or_path, "scheduler.pt")):
         # Load in optimizer and scheduler states
         optimizer.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "optimizer.pt")))
         scheduler.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "scheduler.pt")))
@@ -210,13 +193,13 @@ def train(args, train_dataset, model, tokenizer):
 
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
-
+            
             inputs = {
                 "input_ids": batch[0],
                 "attention_mask": batch[1],
                 "token_type_ids": batch[2],
                 "start_positions": batch[3],
-                "end_positions": batch[4],                
+                "end_positions": batch[4],
             }
 
             outputs = model(**inputs)
@@ -438,7 +421,7 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
             tokenizer,
             is_test=is_test,
         )
-
+    logger.info
     return examples, predictions
 
 
@@ -518,8 +501,6 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
 
 
 def main():
-    logger.warning("start")
-
     parser = argparse.ArgumentParser()
 
     # Required parameters
@@ -528,14 +509,17 @@ def main():
         default=None,
         type=str,
         required=True,
-        # help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
+        help="Model type selected"
     )
+
     parser.add_argument(
         "--model_name_or_path",
         default=None,
         type=str,
         required=True,
+        help="Path to pre-trained model or shortcut name selected"
     )
+
     parser.add_argument(
         "--output_dir",
         default=None,
@@ -544,7 +528,7 @@ def main():
         help="The output directory where the model checkpoints and predictions will be written.",
     )
 
-    # Other parametersㄹ
+    # Other parameters
     parser.add_argument(
         "--data_dir",
         default=None,
@@ -628,7 +612,7 @@ def main():
     parser.add_argument(
         "--per_gpu_eval_batch_size", default=8, type=int, help="Batch size per GPU/CPU for evaluation."
     )
-    parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--learning_rate", default=5e-4, type=float, help="The initial learning rate for Adam.")
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
@@ -669,7 +653,7 @@ def main():
     )
 
     parser.add_argument("--logging_steps", type=int, default=100, help="Log every X updates steps.")
-    parser.add_argument("--save_steps", type=int, default=1000, help="Save checkpoint every X updates steps.")
+    parser.add_argument("--save_steps", type=int, default=10000, help="Save checkpoint every X updates steps.")
     parser.add_argument(
         "--eval_all_checkpoints",
         action="store_true",
@@ -709,11 +693,9 @@ def main():
     ################################
 
     args = parser.parse_args()
-    logger.warning(args)
 
     # for NSML
     args.data_dir = os.path.join(DATASET_PATH, args.data_dir)
-    logger.warning("dataset")
 
     if (
             os.path.exists(args.output_dir)
@@ -740,11 +722,14 @@ def main():
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         args.n_gpu = torch.cuda.device_count()
+        logger.warning('IF args.n_gpu : ' + str(args.n_gpu) + ' / device : ' + str(device) +'\n')
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
         torch.distributed.init_process_group(backend="nccl")
         args.n_gpu = 1
+        logger.warning('ELSE args.n_gpu : ' + str(args.n_gpu) + ' / device : ' + str(device) +'\n')
+
     args.device = device
 
     # Setup logging
@@ -770,10 +755,14 @@ def main():
     if args.local_rank not in [-1, 0]:
         # Make sure only the first process in distributed training will download model & vocab
         torch.distributed.barrier()
-    args.model_type = args.model_type.lower()
 
-    model = BertModel.from_pretrained('monologg/kobert')
-    tokenizer = KoBertTokenizer.from_pretrained('monologg/kobert')
+    logger.warning("Model Loading ..")
+
+    config = BertConfig.from_pretrained(args.model_name_or_path)
+    model = BertForQuestionAnswering.from_pretrained(args.model_name_or_path, config=config)
+    tokenizer = HanBertTokenizer.from_trained(args.model_name_or_path)
+
+    logger.warning("Model Loading Completed")
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
