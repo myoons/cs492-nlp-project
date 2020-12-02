@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 nsml run \
-  -m 'ans_paragraph : no_ans_paragraph = 10 : 2, open_squad_metrics' \
+  -m 'ans_paragraph : no_ans_paragraph = 10 : 3, open_squad_metrics' \
   -d korquad-open-ldbd3 \
   -g 2 \
   -c 8 \
@@ -12,10 +12,13 @@ nsml run \
     --do_eval
     --data_dir train
     --num_train_epochs 5
-    --per_gpu_train_batch_size 32
-    --per_gpu_eval_batch_size 64
+    --max_seq_length 512
+    --max_query_length 64
+    --max_answer_length 30
+    --n_best_size 20
+    --per_gpu_train_batch_size 8
+    --per_gpu_eval_batch_size 32
     --output_dir output
-    --verbose_logging
     --overwrite_output_dir
     --version_2_with_negative
     --learning_rate 5e-5

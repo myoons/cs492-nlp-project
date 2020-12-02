@@ -286,7 +286,7 @@ def train(args, train_dataset, model, tokenizer):
 def evaluate(args, model, tokenizer, prefix="", val_or_test="val"):
     examples, predictions = predict(args, model, tokenizer, prefix=prefix, val_or_test=val_or_test)
     # Compute the F1 and exact scores.
-    results = squad_evaluate(examples, predictions)
+    results = squad_evaluate(examples, predictions, no_answer_probability_threshold=0.7)
     return results
 
 
@@ -646,7 +646,8 @@ def main():
     )
     parser.add_argument(
         "--verbose_logging",
-        action="store_true",
+        type=bool,
+        default=False,
         help="If true, all of the warnings related to data processing will be printed. "
              "A number of warnings are expected for a normal SQuAD evaluation.",
     )

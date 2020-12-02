@@ -105,6 +105,17 @@ def apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
     return new_scores
 
 
+def open_apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
+    new_scores = {}
+    for qid, s in scores.items():
+        pred_na = na_probs[qid] > na_prob_thresh
+        if pred_na:
+            new_scores[qid] = float(not qid_to_has_ans[qid])
+        else:
+            new_scores[qid] = s
+    return new_scores
+
+
 def make_eval_dict(exact_scores, f1_scores, qid_list=None):
     if not qid_list:
         total = len(exact_scores)
@@ -253,10 +264,10 @@ def squad_open_evaluate(examples, preds, no_answer_probs=None, no_answer_probabi
              'has_answer': has_answer}
         )
 
+    exact, f1 = get_raw_scores(examples, preds)
+    
     if no_answer_probs is None:
         no_answer_probs = {k: 0.0 for k in preds}
-
-    exact, f1 = get_raw_scores(examples, preds)
 
     exact_threshold = apply_no_ans_threshold(
         exact, no_answer_probs, qas_id_to_has_answer, no_answer_probability_threshold
@@ -421,20 +432,10 @@ def select_best_predictions(all_nbest_json):
             best_answer_max_prob[qa_id_without_s] = prob
             best_answer_predictions[qa_id_without_s] = text
         else:
-            if best_answer_predictions[qa_id_without_s] == "":
-                if text != "":
-                    best_answer_max_prob[qa_id_without_s] = prob
-                    best_answer_predictions[qa_id_without_s] = text
-            elif best_answer_predictions[qa_id_without_s] != "":
-                if text == "":
-                    continue
-            else:
-                if text == best_answer_predictions[qa_id_without_s]:
-                    best_answer_max_prob[qa_id_without_s] += prob
-                    best_answer_predictions[qa_id_without_s] = text
-                elif prob > best_answer_max_prob[qa_id_without_s]:
-                    best_answer_max_prob[qa_id_without_s] = prob
-                    best_answer_predictions[qa_id_without_s] = text
+            is_max_prob_updated = prob > best_answer_max_prob[qa_id_without_s]
+            if is_max_prob_updated:
+                best_answer_max_prob[qa_id_without_s] = prob
+                best_answer_predictions[qa_id_without_s] = text
 
     return best_answer_predictions
 
