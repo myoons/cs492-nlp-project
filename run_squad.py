@@ -20,6 +20,7 @@ from open_squad_metrics import (
     compute_predictions_log_probs,
     compute_predictions_logits,
     squad_evaluate,
+    squad_open_evaluate
 )
 
 from open_squad import SquadResult, SquadV1Processor, SquadV2Processor
@@ -49,7 +50,7 @@ def to_list(tensor):
 
 def _infer(model, tokenizer, my_args, root_path):
     my_args.data_dir = root_path
-    _, predictions = predict(my_args, model, tokenizer, val_or_test="test")
+    _, predictions, probabilites = predict(my_args, model, tokenizer, val_or_test="test")
     qid_and_answers = [("test-{}".format(qid), answer) for qid, (_, answer) in enumerate(predictions.items())]
     return qid_and_answers
 
@@ -288,7 +289,7 @@ def evaluate(args, model, tokenizer, prefix="", val_or_test="val"):
     examples, predictions, probabilites = predict(args, model, tokenizer, prefix=prefix, val_or_test=val_or_test)
     # Compute the F1 and exact scores. 
     # predictions 
-    results = squad_evaluate(examples, predictions, probabilites)
+    results = squad_evaluate(examples, predictions, no_answer_probs=probabilites)
     return results
 
 
@@ -398,7 +399,6 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
         is_test=is_test,
     )
     
-    logger.info
     return examples, predictions, probabilites
 
 

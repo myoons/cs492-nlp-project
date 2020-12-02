@@ -97,12 +97,13 @@ def get_raw_scores(examples, preds):
 def apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
     # na_probs : no answer probabilities
     # na_prob_thresho : threshold
+    # 1 - max_probs
     # qid_to_has_ans : {question_text[SEP]answer_text : [{'id': question_text[SEP]answer_text[SEP]pi, 'has_answer': has_answer(bool)}, ... 여러개 (Paragraph 수만큼)]}
     new_scores = {}
     for qid, s in scores.items():
         pred_na = na_probs[qid] > na_prob_thresh # Threshold , Currently 1.0 = False
         if pred_na:
-            new_scores[qid] = float(not qid_to_has_ans[qid])
+            new_scores[qid] = float(not qid_to_has_ans[qid]) # qid_to_has_ans[qid] True 면 0.0 / False 면 1.0
         else:
             new_scores[qid] = s
     return new_scores
@@ -244,26 +245,7 @@ def find_all_best_thresh(main_eval, preds, exact_raw, f1_raw, na_probs, qid_to_h
     main_eval["best_f1_thresh"] = f1_thresh
 
 
-def squad_evaluate(examples, preds, probs, no_answer_probs=None, no_answer_probability_threshold=1.0):
-    """
-    example = SquadExample(
-                qas_id= "{}[SEP]{}[SEP]{}".format(question_text, answer_text, pi)
-                question_text=question_text,
-                context_text=context_text,
-                answer_text=answer_text,
-                start_position_character=start_position_character,
-                title=title,
-                is_impossible=is_impossible,
-                answers=answers, # if no_ans or is_training empty else {text, answer_start}
-            )
-    """
-
-    logger.info('preds : {}'.format(preds))
-    logger.info('preds type : {}'.format(type(preds)))
-    logger.info('preds len : {}'.format(len(preds)))
-    logger.info('probs : {}'.format(probs))
-    logger.info('probs type : {}'.format(type(probs)))
-    logger.info('probs len : {}'.format(len(probs)))
+def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=0.7):
 
     # if no_ans or is_training : fasle, else (has_ans, not is_training) : true  // { qas_id : bool }
     qas_id_to_has_answer = {example.qas_id: bool(example.answers) for example in examples}
@@ -271,6 +253,9 @@ def squad_evaluate(examples, preds, probs, no_answer_probs=None, no_answer_proba
     has_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if has_answer]
     # qids for no_ans
     no_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if not has_answer]
+
+    logger.info('preds len : {}'.format(len(preds)))
+    logger.info('probs len : {}'.format(len(probs)))
 
     if no_answer_probs is None:
         no_answer_probs = {k: 0.0 for k in preds}
@@ -498,6 +483,7 @@ def select_best_predictions(all_nbest_json):
         
         print('best_answer_max_prob :',best_answer_max_prob)
         print('best_answer_predictions :',best_answer_predictions)
+
     return best_answer_predictions, best_answer_max_prob
 
 
@@ -534,6 +520,7 @@ def compute_predictions_logits(
     )
 
     all_predictions = collections.OrderedDict()
+    no_probabilities = collections.OrderedDict()
     all_nbest_json = collections.OrderedDict()
     scores_diff_json = collections.OrderedDict()
 
@@ -681,18 +668,27 @@ def compute_predictions_logits(
         assert len(nbest_json) >= 1
 
         if not version_2_with_negative:
-            all_predictions[example.qas_id] = nbest_json[0]["text"]
-        else:
+            all_predictions[example.qas_id] = nbest_json[0]["text"] # predictions
+            all_probabilities[example.qas_id] = 1 - nbest_json[0]["probability"] # probabilities
+        else: # Default
             # predict "" iff the null score - the score of best non-null > threshold
             if best_non_null_entry:
                 score_diff = score_null - best_non_null_entry.start_logit - (best_non_null_entry.end_logit)
             else:
                 score_diff = score_null
             scores_diff_json[example.qas_id] = score_diff
+
+            # logger.info('score_diff : {}'.format(score_diff))
+            # logger.info('best_non_null_entry : {}'.format(best_non_null_entry))
+            # logger.info('probability : {}'.format(nbest_json[0]["probability"]))
+
             if score_diff > null_score_diff_threshold or best_non_null_entry is None:
                 all_predictions[example.qas_id] = ""
+                no_probabilities[example.qas_id] = 1 - nbest_json[0]["probability"]
             else:
                 all_predictions[example.qas_id] = best_non_null_entry.text
+                no_probabilities[example.qas_id] = 1- nbest_json[0]["probability"]
+                
         all_nbest_json[example.qas_id] = nbest_json
 
     if not is_test:
@@ -706,7 +702,7 @@ def compute_predictions_logits(
             with open(output_null_log_odds_file, "w") as writer:
                 writer.write(json.dumps(scores_diff_json, indent=4) + "\n")
 
-        return all_predictions
+        return all_predictions, no_probabilities
 
     else:
         # todo: How to select the best answer among different contexts.
