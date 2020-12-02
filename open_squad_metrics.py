@@ -245,7 +245,7 @@ def find_all_best_thresh(main_eval, preds, exact_raw, f1_raw, na_probs, qid_to_h
     main_eval["best_f1_thresh"] = f1_thresh
 
 
-def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=0.7):
+def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=0.8):
 
     # if no_ans or is_training : fasle, else (has_ans, not is_training) : true  // { qas_id : bool }
     qas_id_to_has_answer = {example.qas_id: bool(example.answers) for example in examples}
@@ -255,7 +255,7 @@ def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_
     no_answer_qids = [qas_id for qas_id, has_answer in qas_id_to_has_answer.items() if not has_answer]
 
     logger.info('preds len : {}'.format(len(preds)))
-    logger.info('probs len : {}'.format(len(probs)))
+    logger.info('probs len : {}'.format(len(no_answer_probs)))
 
     if no_answer_probs is None:
         no_answer_probs = {k: 0.0 for k in preds}

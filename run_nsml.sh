@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ./nsml run \
-  -m 'KoElectra-base-v2 no_ans : 1 / has_ans : 4' \
+  -m 'KoElectra-base-v2 / 10:3 / Threshold : 0.8' \
   -d korquad-open-ldbd3 \
   -g 2 \
   -c 8 \
