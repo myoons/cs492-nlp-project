@@ -590,7 +590,7 @@ class SquadProcessor(DataProcessor):
 
                 if is_impossible and per_qa_unans_paragraph_cnt > 3:
                     continue
-
+                
                 # todo: How to select training samples considering a memory limit.
                 per_qa_paragraph_cnt += 1
                 if is_training and per_qa_paragraph_cnt > 10:
