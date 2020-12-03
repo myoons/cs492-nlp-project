@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ./nsml run \
-  -m 'KoElectra-base-v2 / 10:3 / Threshold : 0.8' \
+  -m 'KoElectra-base-v2 / 10:3 / Threshold : 0.85' \
   -d korquad-open-ldbd3 \
   -g 2 \
   -c 8 \
@@ -19,5 +19,6 @@
     --output_dir output
     --overwrite_output_dir
     --version_2_with_negative
-    --n_best_size 30"
+    --n_best_size 20
+    --null_score_diff_threshold 0.0"
     

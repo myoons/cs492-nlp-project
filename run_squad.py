@@ -443,6 +443,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
             tfds_examples = tfds.load("squad")
             examples = SquadV1Processor().get_examples_from_dataset(tfds_examples, evaluate=evaluate)
         else:
+            # Default
             processor = SquadV2Processor() if args.version_2_with_negative else SquadV1Processor()
             if evaluate:
                 filename = args.predict_file if val_or_test == "val" else "test_data/korquad_open_test.json"

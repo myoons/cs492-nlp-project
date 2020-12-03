@@ -104,6 +104,7 @@ def apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
         pred_na = na_probs[qid] > na_prob_thresh # Threshold , Currently 1.0 = False
         if pred_na:
             new_scores[qid] = float(not qid_to_has_ans[qid]) # qid_to_has_ans[qid] True 면 0.0 / False 면 1.0
+            logger.info('Over Threshold / qid : {} / probability : {} / score : {}'.format(qid, na_probs[qid], new_scores[qid]))
         else:
             new_scores[qid] = s
     return new_scores
@@ -245,7 +246,7 @@ def find_all_best_thresh(main_eval, preds, exact_raw, f1_raw, na_probs, qid_to_h
     main_eval["best_f1_thresh"] = f1_thresh
 
 
-def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=0.8):
+def squad_evaluate(examples, preds, no_answer_probs=None, no_answer_probability_threshold=0.85):
 
     # if no_ans or is_training : fasle, else (has_ans, not is_training) : true  // { qas_id : bool }
     qas_id_to_has_answer = {example.qas_id: bool(example.answers) for example in examples}
@@ -508,7 +509,8 @@ def compute_predictions_logits(
     logger.info("Writing nbest to: %s" % (output_nbest_file))
 
     example_index_to_features = collections.defaultdict(list)
-    for feature in all_features:
+    for feature in all_features: # 모든 Squad Example이 Feature로 되어있는 리스트/ 같은 질답 --> 다른 Paragraph
+        # {"question/answer" : features}
         example_index_to_features[feature.example_index].append(feature)
 
     unique_id_to_result = {}
@@ -533,8 +535,10 @@ def compute_predictions_logits(
         min_null_feature_index = 0  # the paragraph slice with min null score
         null_start_logit = 0  # the start logit at the slice with min null score
         null_end_logit = 0  # the end logit at the slice with min null score
+        
         for (feature_index, feature) in enumerate(features):
             result = unique_id_to_result[feature.unique_id]
+            # logits : 날 예측값
             start_indexes = _get_best_indexes(result.start_logits, n_best_size)
             end_indexes = _get_best_indexes(result.end_logits, n_best_size)
             # if we could have irrelevant answers, get the min score of irrelevant
@@ -545,6 +549,8 @@ def compute_predictions_logits(
                     min_null_feature_index = feature_index
                     null_start_logit = result.start_logits[0]
                     null_end_logit = result.end_logits[0]
+
+
             for start_index in start_indexes:
                 for end_index in end_indexes:
                     # We could hypothetically create invalid predictions, e.g., predict
@@ -648,6 +654,7 @@ def compute_predictions_logits(
 
         total_scores = []
         best_non_null_entry = None
+
         for entry in nbest:
             total_scores.append(entry.start_logit + entry.end_logit)
             if not best_non_null_entry:
@@ -681,14 +688,16 @@ def compute_predictions_logits(
             # logger.info('score_diff : {}'.format(score_diff))
             # logger.info('best_non_null_entry : {}'.format(best_non_null_entry))
             # logger.info('probability : {}'.format(nbest_json[0]["probability"]))
-
+            # "" x "김윤서" , 0.0
             if score_diff > null_score_diff_threshold or best_non_null_entry is None:
+                logger.info('score_diff : {}'.format(score_diff))
                 all_predictions[example.qas_id] = ""
-                no_probabilities[example.qas_id] = 1 - nbest_json[0]["probability"]
+                no_probabilities[example.qas_id] = 1.0
             else:
                 all_predictions[example.qas_id] = best_non_null_entry.text
                 no_probabilities[example.qas_id] = 1- nbest_json[0]["probability"]
-                
+            
+
         all_nbest_json[example.qas_id] = nbest_json
 
     if not is_test:
