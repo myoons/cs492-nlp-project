@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 nsml run \
-  -m 'ans_paragraph : no_ans_paragraph = 10 : 3, open_squad_metrics' \
+  -m 'ans_paragraph : no_ans_paragraph = 10 : 3, threshold 0.85 script context' \
   -d korquad-open-ldbd3 \
   -g 2 \
   -c 8 \
@@ -16,8 +16,8 @@ nsml run \
     --max_query_length 64
     --max_answer_length 30
     --n_best_size 20
-    --per_gpu_train_batch_size 8
-    --per_gpu_eval_batch_size 32
+    --per_gpu_train_batch_size 32
+    --per_gpu_eval_batch_size 64
     --output_dir output
     --overwrite_output_dir
     --version_2_with_negative

@@ -429,6 +429,34 @@ def squad_convert_examples_to_features(
 
     return features
 
+def share_context(context_text, question_text):
+    context_nn = context_text.split(" ")
+    question_nn = question_text.split(" ")
+    print(context_nn)
+    print(question_nn)
+
+    share = 0
+    for context in context_nn:
+        if not context:
+            continue
+        for question in question_nn:
+            if not question:
+                continue
+            local_share1 = 0
+            for c in context:
+                if c in question:
+                    local_share1 += 1
+            local_share2 = 0
+            for q in question:
+                if q in context:
+                    local_share2 += 1
+            if (local_share1 + local_share2) / (len(context) + len(question)) > 0.66:
+                share += 1
+    
+    if share < 3:
+        return False
+    else:
+        return True
 
 class SquadProcessor(DataProcessor):
     """
@@ -564,6 +592,10 @@ class SquadProcessor(DataProcessor):
                     is_impossible = True
                 else:
                     is_impossible = False
+
+                if not is_impossible:
+                    if not share_context(context_text, question_text):
+                        is_impossible = True
 
                 if not is_impossible:
                     if is_training:
