@@ -594,10 +594,6 @@ class SquadProcessor(DataProcessor):
                     is_impossible = False
 
                 if not is_impossible:
-                    if not share_context(context_text, question_text):
-                        is_impossible = True
-
-                if not is_impossible:
                     if is_training:
                         start_position_character = context_text.index(answer_text)  # answer["answer_start"]
                     else:

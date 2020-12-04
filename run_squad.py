@@ -20,6 +20,7 @@ from open_squad_metrics import (
     compute_predictions_log_probs,
     compute_predictions_logits,
     squad_evaluate,
+    squad_open_evaluate
 )
 
 from open_squad import SquadResult, SquadV1Processor, SquadV2Processor
@@ -653,7 +654,7 @@ def main():
     )
 
     parser.add_argument("--logging_steps", type=int, default=100, help="Log every X updates steps.")
-    parser.add_argument("--save_steps", type=int, default=10000, help="Save checkpoint every X updates steps.")
+    parser.add_argument("--save_steps", type=int, default=5000, help="Save checkpoint every X updates steps.")
     parser.add_argument(
         "--eval_all_checkpoints",
         action="store_true",
