@@ -17,7 +17,6 @@ from open_squad import squad_convert_examples_to_features
 
 # KorQuAD-Open-Naver-Search 사용할때 전처리 코드.
 from open_squad_metrics import (
-    compute_predictions_log_probs,
     compute_predictions_logits,
     squad_evaluate,
     squad_open_evaluate
