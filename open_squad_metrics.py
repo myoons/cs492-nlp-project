@@ -474,10 +474,20 @@ def select_best_predictions(all_nbest_json):
             best_answer_max_prob[qa_id_without_s] = prob
             best_answer_predictions[qa_id_without_s] = text
         else:
-            is_max_prob_updated = prob > best_answer_max_prob[qa_id_without_s]
-            if is_max_prob_updated:
-                best_answer_max_prob[qa_id_without_s] = prob
-                best_answer_predictions[qa_id_without_s] = text
+            if best_answer_predictions[qa_id_without_s] == "":
+                if text != "":
+                    best_answer_max_prob[qa_id_without_s] = prob
+                    best_answer_predictions[qa_id_without_s] = text
+            else:
+                if text == "":
+                    continue
+                if text == best_answer_predictions[qa_id_without_s]:
+                    best_answer_max_prob[qa_id_without_s] += prob
+                    best_answer_predictions[qa_id_without_s] = text
+                elif prob > best_answer_max_prob[qa_id_without_s]:
+                    best_answer_max_prob[qa_id_without_s] = prob
+                    best_answer_predictions[qa_id_without_s] = text
+
         
         print('best_answer_max_prob :',best_answer_max_prob)
         print('best_answer_predictions :',best_answer_predictions)
