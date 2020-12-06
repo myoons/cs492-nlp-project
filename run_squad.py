@@ -50,7 +50,7 @@ def to_list(tensor):
 
 def _infer(model, tokenizer, my_args, root_path):
     my_args.data_dir = root_path
-    _, predictions = predict(my_args, model, tokenizer, val_or_test="test")
+    _, predictions, probabilites = predict(my_args, model, tokenizer, val_or_test="test")
     qid_and_answers = [("test-{}".format(qid), answer) for qid, (_, answer) in enumerate(predictions.items())]
     return qid_and_answers
 
@@ -285,13 +285,17 @@ def train(args, train_dataset, model, tokenizer):
 
 
 def evaluate(args, model, tokenizer, prefix="", val_or_test="val"):
-    examples, predictions = predict(args, model, tokenizer, prefix=prefix, val_or_test=val_or_test)
-    # Compute the F1 and exact scores.
-    results = squad_evaluate(examples, predictions, no_answer_probability_threshold=0.7)
+    # prefix = epoch
+    examples, predictions, probabilites = predict(args, model, tokenizer, prefix=prefix, val_or_test=val_or_test)
+    # Compute the F1 and exact scores. 
+    # predictions 
+    results = squad_evaluate(examples, predictions, no_answer_probs=probabilites)
     return results
 
 
 def predict(args, model, tokenizer, prefix="", val_or_test="val"):
+
+    # get Datasets for prediction
     dataset, examples, features = load_and_cache_examples(
         args, tokenizer, evaluate=True, output_examples=True,
         val_or_test=val_or_test,
@@ -329,15 +333,7 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
                 "token_type_ids": batch[2],
             }
 
-            if args.model_type in ["xlm", "roberta", "distilbert"]:
-                del inputs["token_type_ids"]
-
             example_indices = batch[3]
-
-            # XLNet and XLM use more arguments for their predictions
-            if args.model_type in ["xlnet", "xlm"]:
-                inputs.update({"cls_index": batch[4], "p_mask": batch[5]})
-
             outputs = model(**inputs)
 
         for i, example_index in enumerate(example_indices):
@@ -378,51 +374,32 @@ def predict(args, model, tokenizer, prefix="", val_or_test="val"):
     output_nbest_file = os.path.join(args.output_dir, "nbest_predictions_{}.json".format(prefix))
 
     if args.version_2_with_negative:
+        # This one (Default)
         output_null_log_odds_file = os.path.join(args.output_dir, "null_odds_{}.json".format(prefix))
     else:
         output_null_log_odds_file = None
 
     is_test = (val_or_test == "test")
     # XLNet and XLM use a more complex post-processing procedure
-    if args.model_type in ["xlnet", "xlm"]:
-        start_n_top = model.config.start_n_top if hasattr(model, "config") else model.module.config.start_n_top
-        end_n_top = model.config.end_n_top if hasattr(model, "config") else model.module.config.end_n_top
 
-        predictions = compute_predictions_log_probs(
-            examples,
-            features,
-            all_results,
-            args.n_best_size,
-            args.max_answer_length,
-            output_prediction_file,
-            output_nbest_file,
-            output_null_log_odds_file,
-            start_n_top,
-            end_n_top,
-            args.version_2_with_negative,
-            tokenizer,
-            args.verbose_logging,
-            is_test=is_test,
-        )
-    else:
-        predictions = compute_predictions_logits(
-            examples,
-            features,
-            all_results,
-            args.n_best_size,
-            args.max_answer_length,
-            args.do_lower_case,
-            output_prediction_file,
-            output_nbest_file,
-            output_null_log_odds_file,
-            args.verbose_logging,
-            args.version_2_with_negative,
-            args.null_score_diff_threshold,
-            tokenizer,
-            is_test=is_test,
-        )
-    logger.info
-    return examples, predictions
+    predictions, probabilites = compute_predictions_logits(
+        examples,
+        features,
+        all_results,
+        args.n_best_size,
+        args.max_answer_length,
+        args.do_lower_case,
+        output_prediction_file,
+        output_nbest_file,
+        output_null_log_odds_file,
+        args.verbose_logging,
+        args.version_2_with_negative,
+        args.null_score_diff_threshold,
+        tokenizer,
+        is_test=is_test,
+    )
+    
+    return examples, predictions, probabilites
 
 
 def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=False, val_or_test="val"):
@@ -466,6 +443,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
             tfds_examples = tfds.load("squad")
             examples = SquadV1Processor().get_examples_from_dataset(tfds_examples, evaluate=evaluate)
         else:
+            # Default
             processor = SquadV2Processor() if args.version_2_with_negative else SquadV1Processor()
             if evaluate:
                 filename = args.predict_file if val_or_test == "val" else "test_data/korquad_open_test.json"
@@ -612,7 +590,7 @@ def main():
     parser.add_argument(
         "--per_gpu_eval_batch_size", default=8, type=int, help="Batch size per GPU/CPU for evaluation."
     )
-    parser.add_argument("--learning_rate", default=5e-4, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
@@ -647,14 +625,13 @@ def main():
     )
     parser.add_argument(
         "--verbose_logging",
-        type=bool,
-        default=False,
+        action="store_true",
         help="If true, all of the warnings related to data processing will be printed. "
              "A number of warnings are expected for a normal SQuAD evaluation.",
     )
 
     parser.add_argument("--logging_steps", type=int, default=100, help="Log every X updates steps.")
-    parser.add_argument("--save_steps", type=int, default=5000, help="Save checkpoint every X updates steps.")
+    parser.add_argument("--save_steps", type=int, default=10000, help="Save checkpoint every X updates steps.")
     parser.add_argument(
         "--eval_all_checkpoints",
         action="store_true",

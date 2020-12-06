@@ -429,34 +429,6 @@ def squad_convert_examples_to_features(
 
     return features
 
-def share_context(context_text, question_text):
-    context_nn = context_text.split(" ")
-    question_nn = question_text.split(" ")
-    print(context_nn)
-    print(question_nn)
-
-    share = 0
-    for context in context_nn:
-        if not context:
-            continue
-        for question in question_nn:
-            if not question:
-                continue
-            local_share1 = 0
-            for c in context:
-                if c in question:
-                    local_share1 += 1
-            local_share2 = 0
-            for q in question:
-                if q in context:
-                    local_share2 += 1
-            if (local_share1 + local_share2) / (len(context) + len(question)) > 0.66:
-                share += 1
-    
-    if share < 3:
-        return False
-    else:
-        return True
 
 class SquadProcessor(DataProcessor):
     """
@@ -570,6 +542,7 @@ class SquadProcessor(DataProcessor):
         examples = []
 
         has_answer_cnt, no_answer_cnt = 0, 0
+
         for entry in tqdm(input_data[:]):
             qa = entry['qa']
             question_text = qa["question"]
@@ -577,8 +550,14 @@ class SquadProcessor(DataProcessor):
             if question_text is None or answer_text is None:
                 continue
 
-            per_qa_paragraph_cnt = 0
             per_qa_unans_paragraph_cnt = 0
+            per_qa_paragraph_cnt = 0
+
+            # Whether previous paragraph had answer.
+            before_paragraph_answer = False
+            before_paragraph_appended = False
+
+            # 여러 문단들 중 어떤 문단을 선택할 것인지.
             for pi, paragraph in enumerate(entry["paragraphs"]):
                 title = paragraph["title"]
                 context_text = str(paragraph["contents"])
@@ -608,8 +587,9 @@ class SquadProcessor(DataProcessor):
                     start_position_character=start_position_character,
                     title=title,
                     is_impossible=is_impossible,
-                    answers=answers,
+                    answers=answers, # if no_ans or is_training empty else {text, answer_start}
                 )
+
                 if is_impossible:
                     no_answer_cnt += 1
                     per_qa_unans_paragraph_cnt += 1
@@ -618,15 +598,21 @@ class SquadProcessor(DataProcessor):
 
                 if is_impossible and per_qa_unans_paragraph_cnt > 3:
                     continue
-                
+
                 # todo: How to select training samples considering a memory limit.
+                # per_qa_paragraph_cnt: 개수 수정
                 per_qa_paragraph_cnt += 1
                 if is_training and per_qa_paragraph_cnt > 10:
                     break
 
                 examples.append(example)
 
-        print("[{}] Has Answer({}) / No Answer({})".format(set_type, has_answer_cnt, no_answer_cnt))
+                # todo: How to select training samples considering a memory limit.
+                
+                # Prediction 가지는 paragraph를 선택하는 것이 합리적
+                
+        print("[{}] Has Answer({}) / No Answer({}) selected for examples".format(set_type, has_answer_cnt, no_answer_cnt))
+
         return examples
 
 

@@ -90,7 +90,6 @@ def get_raw_scores(examples, preds):
 
     return exact_scores, f1_scores
 
-
 def apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
     # na_probs : no answer probabilities
     # na_prob_thresho : threshold
@@ -299,8 +298,10 @@ def squad_open_evaluate(examples, preds, no_answer_probs=None, no_answer_probabi
     open_qas_id_to_has_answer = {'[SEP]'.join(qas_id.split('[SEP]')[:2]): [] for qas_id in qas_id_to_has_answer}
     for qas_id, has_answer in qas_id_to_has_answer.items():
         open_qas_id_to_has_answer['[SEP]'.join(qas_id.split('[SEP]')[:2])].append(
-            {'id': qas_id,
-             'has_answer': has_answer}
+            {
+                'id': qas_id,
+                'has_answer': has_answer
+            }
         )
 
     # pred를 사용해서 no_answer_probs를 어떻게 하면 될듯?
@@ -465,32 +466,60 @@ def select_best_predictions(all_nbest_json):
     # todo: How to select the best answer among different contexts.
     best_answer_max_prob = collections.OrderedDict()
     best_answer_predictions = collections.OrderedDict()
+    answer_list_per_qas = collections.OrderedDict()
+    
     for qas_id, nbest_json in all_nbest_json.items():
         qa_id_without_s = "[SEP]".join(qas_id.split("[SEP]")[:2])
         text = nbest_json[0]["text"]
         prob = nbest_json[0]["probability"]
 
+        if qa_id_without_s not in answer_list_per_qas:
+            answer_list_per_qas[qa_id_without_s] = {text: [prob, 1]}
+        else:
+            answer_list_per_qas[qa_id_without_s][text][0] += prob
+            answer_list_per_qas[qa_id_without_s][text][1] += 1
+        
         if qa_id_without_s not in best_answer_max_prob:
             best_answer_max_prob[qa_id_without_s] = prob
             best_answer_predictions[qa_id_without_s] = text
         else:
-            if best_answer_predictions[qa_id_without_s] == "":
-                if text != "":
-                    best_answer_max_prob[qa_id_without_s] = prob
-                    best_answer_predictions[qa_id_without_s] = text
-            else:
-                if text == "":
-                    continue
-                if text == best_answer_predictions[qa_id_without_s]:
-                    best_answer_max_prob[qa_id_without_s] += prob
-                    best_answer_predictions[qa_id_without_s] = text
-                elif prob > best_answer_max_prob[qa_id_without_s]:
-                    best_answer_max_prob[qa_id_without_s] = prob
-                    best_answer_predictions[qa_id_without_s] = text
+            is_better_answer = prob > best_answer_max_prob[qa_id_without_s]
+            if is_better_answer:
+                if best_answer_predictions[qa_id_without_s] == "":
+                    if text != "":
+                        best_answer_max_prob[qa_id_without_s] = prob
+                        best_answer_predictions[qa_id_without_s] = text
+                else:                        
+                    if text == best_answer_predictions[qa_id_without_s]:
+                        best_answer_max_prob[qa_id_without_s] += prob
+                        best_answer_predictions[qa_id_without_s] = text
+                    else:
+                        best_answer_max_prob[qa_id_without_s] = prob
+                        best_answer_predictions[qa_id_without_s] = text
 
-        
-        print('best_answer_max_prob :',best_answer_max_prob)
-        print('best_answer_predictions :',best_answer_predictions)
+        print(answer_list_per_qas)
+
+        print('best_answer_max_prob :', best_answer_max_prob)
+        print('best_answer_predictions :', best_answer_predictions)
+
+    for qas, answers in answer_list_per_qas.items():
+        max_count = 0
+        max_prob = 0.0
+        max_text = ""
+
+        for text, li in answers.items():
+            prob, count = li[0], li[1]
+            if sum(prob) / count > max_prob:
+                max_prob = sum(prob) / count
+                max_count = count
+                max_text = text
+            elif count > max_count + 2:
+                max_prob = sum(prob) / count
+                max_count = count
+                max_text = text
+
+        best_answer_max_prob[qas] = max_prob
+        best_answer_predictions[qas] = max_text
 
     return best_answer_predictions, best_answer_max_prob
 
@@ -702,7 +731,7 @@ def compute_predictions_logits(
                 no_probabilities[example.qas_id] = 1.0
             else:
                 all_predictions[example.qas_id] = best_non_null_entry.text
-                no_probabilities[example.qas_id] = 1- nbest_json[0]["probability"]
+                no_probabilities[example.qas_id] = 1 - nbest_json[0]["probability"]
             
 
         all_nbest_json[example.qas_id] = nbest_json
