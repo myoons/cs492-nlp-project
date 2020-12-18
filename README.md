@@ -14,9 +14,8 @@
 
 In this NLP task, we used variation of KoELECTRA to solve Open KorQuAD problem [1]. 
 
-## Author
-
-👤 **Yeji Han, Yoonseo Kim, **
+## Author 👤
+**Yeji Han, Yoonseo Kim**
 
 * Github: [@Yeji Han](https://github.com/yejihan-dev)
 * Github: [@Yoonseo Kim](https://github.com/myoons)
