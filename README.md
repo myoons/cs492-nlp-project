@@ -56,38 +56,38 @@ Training the model in LOCAL
 
 ## Major Flags
 
-- -\-model_type : Model type selected
-		1. default = None
-		2. type =  str
-		3. required = True
+- -\-model_type : Model type selected  
+		1. default = None  
+		2. type =  str  
+		3. required = True  
 
-- -\-model_name_or_path : Path to pre-trained model or shortcut name selected
-		1. default = None
-		2. type =  str
-		3. required = True
+- -\-model_name_or_path : Path to pre-trained model or shortcut name selected  
+		1. default = None  
+		2. type =  str  
+		3. required = True  
 
-- -\-num_train_epochs : Total number of training epochs to perform
-		 1. default = 3.0
-		 2. type = float
+- -\-num_train_epochs : Total number of training epochs to perform  
+		 1. default = 3.0  
+		 2. type = float  
 
-- -\-learning_rate : The initial learning rate for Adam
-		1. default = 5e-5
-		2. type = float
+- -\-learning_rate : The initial learning rate for Adam  
+		1. default = 5e-5  
+		2. type = float  
 
-- -\-max_seq_length : The maximum total input sequence length after WordPiece tokenization
-		1. default = 384
-		2. type = int
+- -\-max_seq_length : The maximum total input sequence length after WordPiece tokenization  
+		1. default = 384  
+		2. type = int  
 		
-- -\ -version_2_with_negative : If true, the SQuAD examples contain some that do not have an answer
-		1. action = store_true
+- -\ -version_2_with_negative : If true, the SQuAD examples contain some that do not have an answer  
+		1. action = store_true  
 
-- -\-n_best_size 20 : The total number of n-best predictions to generate in the nbest_predictions.json output file
-		1. default = 20
-		2. type = int
+- -\-n_best_size 20 : The total number of n-best predictions to generate in the nbest_predictions.json output file  
+		1. default = 20  
+		2. type = int  
 
-- -\-null_score_diff_threshold : If null_score - best_non_null is greater than the threshold predict null
-		1. type = float
-		2. default = 0.0
+- -\-null_score_diff_threshold : If null_score - best_non_null is greater than the threshold predict null  
+		1. type = float  
+		2. default = 0.0  
 
 ## Reference
 ## Reference
