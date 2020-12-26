@@ -90,7 +90,6 @@ Training the model in LOCAL
 		2. default = 0.0  
 
 ## Reference
-## Reference
 [1] **[## ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators](https://arxiv.org/abs/2001.07685)** by Kevin Clar, Minh-Thang Luong, Quoc V. Le, Christopher D. Manning
 
 [2] **[KoELECTRA - Github](https://github.com/monologg/KoELECTRA)** by monologg
